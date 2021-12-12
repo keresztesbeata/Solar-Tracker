@@ -1,2 +1,2 @@
-# Solar-Panel-Tracker
+# Solar-Tracker
 Arduino Project for DMP laboratory
