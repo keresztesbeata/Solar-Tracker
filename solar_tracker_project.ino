@@ -8,6 +8,8 @@ Servo tilt;  // create servo object to control the pitch servo
 #define STEP_DIVIDER 30
 #define ANALOG_READ_DELAY 100
 
+#define NO_MEASUREMENTS 5
+
 int pinPhotoResistorS = A1;
 int pinPhotoResistorN = A2;
 int pinPhotoResistorE = A3;
@@ -21,6 +23,13 @@ int tiltPin = 4;
 
 int panAngle = 90, prevPanAngle = 0;
 int tiltAngle = 90, prevTiltAngle = 0;
+
+struct LightIntensityData {
+  int S = 0;
+  int N = 0;
+  int E = 0;
+  int W = 0;
+};
 
 void setup() {
 
@@ -40,27 +49,20 @@ void setup() {
 
 void loop() {
   // reading the photoresistor values...
-  int lightIntensityS = analogRead(pinPhotoResistorS);
-  delay(ANALOG_READ_DELAY);
-  int lightIntensityN = analogRead(pinPhotoResistorN);
-  delay(ANALOG_READ_DELAY);
-  int lightIntensityE = analogRead(pinPhotoResistorE);
-  delay(ANALOG_READ_DELAY);
-  int lightIntensityW = analogRead(pinPhotoResistorW);
-  delay(ANALOG_READ_DELAY);
+  LightIntensityData lightIntData = readLightIntensities();
 
   // printing the photoresistor values
   Serial.println("S N E W");
-  Serial.print(lightIntensityS);
+  Serial.print(lightIntData.S);
   Serial.print(" ");
-  Serial.print(lightIntensityN);
+  Serial.print(lightIntData.N);
   Serial.print(" ");
-  Serial.print(lightIntensityE);
+  Serial.print(lightIntData.E);
   Serial.print(" ");
-  Serial.println(lightIntensityW);
+  Serial.println(lightIntData.W);
 
   // compute new angles
-  int SNdirectionDiff = lightIntensityS - lightIntensityN;
+  int SNdirectionDiff = lightIntData.S - lightIntData.N;
   if (abs(SNdirectionDiff) >= MIN_DIFF) {
     prevTiltAngle = tiltAngle;
     tiltAngle = max(MIN_TILT, min(MAX_TILT, tiltAngle + SNdirectionDiff/STEP_DIVIDER));
@@ -68,7 +70,7 @@ void loop() {
     prevTiltAngle = tiltAngle;
   }
   
-  int EWdirectionDiff = lightIntensityE - lightIntensityW;
+  int EWdirectionDiff = lightIntData.E - lightIntData.W;
   if (abs(EWdirectionDiff) >= MIN_DIFF) {
     prevPanAngle = panAngle;
     panAngle = max(0, min(180, panAngle + EWdirectionDiff/STEP_DIVIDER));
@@ -95,4 +97,33 @@ void loop() {
   Serial.print(panAngle);
   Serial.print("; tiltAngle=");
   Serial.println(tiltAngle);
+}
+
+LightIntensityData readLightIntensities() {
+  LightIntensityData result;
+
+  int lightIntensityS, lightIntensityN, lightIntensityE, lightIntensityW;
+  
+  for (int i = 0; i < NO_MEASUREMENTS; i++) {
+    lightIntensityS = analogRead(pinPhotoResistorS);
+    delay(ANALOG_READ_DELAY);
+    lightIntensityN = analogRead(pinPhotoResistorN);
+    delay(ANALOG_READ_DELAY);
+    lightIntensityE = analogRead(pinPhotoResistorE);
+    delay(ANALOG_READ_DELAY);
+    lightIntensityW = analogRead(pinPhotoResistorW);
+    delay(ANALOG_READ_DELAY);
+
+    result.S += lightIntensityS;
+    result.N += lightIntensityN;
+    result.E += lightIntensityE;
+    result.W += lightIntensityW;
+  }
+
+  result.S /= NO_MEASUREMENTS;
+  result.E /= NO_MEASUREMENTS;
+  result.W /= NO_MEASUREMENTS;
+  result.N /= NO_MEASUREMENTS;
+
+  return result;
 }
