@@ -189,6 +189,10 @@ MotorPositions performBroadSearch() {
     while(continue_moving_pan) {
       pan.write(pan_pos);
       double current_voltage = readSolarPanelVoltage();
+
+      //print
+      debugForMode2();
+      
       //identify is this is the max voltage
       if(current_voltage > max_voltage) {
         maxVoltageMotorPos.panAngle = pan_pos;
@@ -206,6 +210,7 @@ MotorPositions performBroadSearch() {
           continue_moving_pan = false;
         }
       }
+      delay(500); // delay between next move and measure
     }
     moving_pan_left_to_right = !moving_pan_left_to_right;
     continue_moving_pan = true;
@@ -252,6 +257,14 @@ void DebugSendDataOverSerial() {
   Serial.println((String) "S=" + lightIntData.S + ", N=" + lightIntData.N +
                  ", E=" + lightIntData.E + ", W=" + lightIntData.W);
 
+  Serial.println("---Motor positions: ");
+  Serial.println((String) "PanAngle=" + motorPos.panAngle + ", TiltAngle=" + motorPos.tiltAngle);
+
+  Serial.println("---Voltage: ");
+  Serial.println((String) voltage + "V");
+}
+
+void debugForMode2() {
   Serial.println("---Motor positions: ");
   Serial.println((String) "PanAngle=" + motorPos.panAngle + ", TiltAngle=" + motorPos.tiltAngle);
 
