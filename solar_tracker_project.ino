@@ -33,6 +33,16 @@ int tiltPin = 4;
 #define MIN_PAN 5
 #define MAX_PAN 175
 
+// increments for broad search
+#define TILT_INC_BROAD 5
+#define PAN_INC_BROAD 5
+// increments for restricted search
+#define TILT_INC_RESTR 5
+#define PAN_INC_RESTR 2
+// to define restricted search area
+#define RESTR_SEARCH_AREA_TILT 20
+#define RESTR_SEARCH_AREA_PAN 30
+
 /*------------------------------------- Application State -------------------------------------*/
 
 // Data structures for the application's state
@@ -55,7 +65,7 @@ enum Mode {
   lowPowerMode
 };
 
-Mode mode = sensorMode;
+Mode mode = searchMode;
 
 LightIntensityData lightIntData;
 MotorPositions motorPos, prevMotorPos, maxVoltageMotorPos;
@@ -64,6 +74,13 @@ double max_voltage = 0.0;
 
 // Loop counter, for the DAQ verification purposes
 int loop_counter = 0;
+
+//used to perform searches at a specified interval
+unsigned long previousMillis = 0;
+const long interval = 30000; // 30 second interval bteween restricted searches
+
+//used to initalize the search mode with a broad search
+bool initialize_broad_search = true;
 
 /*-------------------------------------------- Setup --------------------------------------------*/
 void setup() {
@@ -102,21 +119,36 @@ void loop() {
         // finding the new motor positions
         prevMotorPos = motorPos;
         motorPos = computeNewMotorAngles(prevMotorPos, lightIntData);
-
         // move motors to the new angles, if a change occured
         updateMotorAngles();
-
         outputData();
         break;
       }
     case searchMode : {
-        maxVoltageMotorPos = performBroadSearch();
-        motorPos = maxVoltageMotorPos;
-        updateMotorAngles();
-        outputData();
-        delay(10000); //delay 10 seconds between searches
-      break;
-    }
+        if (initialize_broad_search) {
+          initialize_broad_search = false;
+          maxVoltageMotorPos = performSearch(MIN_PAN, MIN_TILT, MAX_PAN, MAX_TILT, TILT_INC_BROAD, PAN_INC_BROAD);
+          motorPos = maxVoltageMotorPos;
+          updateMotorAngles();
+          outputData();
+          previousMillis = millis();
+        } else {
+          unsigned long currentMillis = millis(); // used to have an interval of time between searches
+          if (currentMillis - previousMillis >= interval) {
+            previousMillis = currentMillis;
+            // we will make a more restricted search since we supppose the light won't move very much
+            // from the initial position
+            maxVoltageMotorPos = performSearch(motorPos.panAngle - RESTR_SEARCH_AREA_PAN, 
+                                              motorPos.tiltAngle - RESTR_SEARCH_AREA_TILT, 
+                                              motorPos.panAngle + RESTR_SEARCH_AREA_PAN, 
+                                              motorPos.tiltAngle + RESTR_SEARCH_AREA_TILT, TILT_INC_RESTR, PAN_INC_RESTR);
+            motorPos = maxVoltageMotorPos;
+            updateMotorAngles();
+            outputData();
+          }
+        }
+        break;
+      }
   }
 }
 
@@ -176,41 +208,55 @@ MotorPositions computeNewMotorAngles(MotorPositions prevPos, LightIntensityData 
   return resultPos;
 }
 
-MotorPositions performBroadSearch() {
-  maxVoltageMotorPos.panAngle = MIN_PAN;
-  maxVoltageMotorPos.tiltAngle = MIN_TILT;
+MotorPositions performSearch(int pan_start, int tilt_start, int pan_end, int tilt_end, int tilt_increment, int pan_increment) {
+  maxVoltageMotorPos.panAngle = pan_start;
+  maxVoltageMotorPos.tiltAngle = tilt_start;
   max_voltage = 0.0;
   bool moving_pan_left_to_right = true;
   bool continue_moving_pan = true;
-  int pan_pos = MIN_PAN;
+  int pan_pos = pan_start;
 
-  for(int tilt_pos = MIN_TILT; tilt_pos <= MAX_TILT; tilt_pos+=5) {
+  //make sure not to exceed the limits
+  if (tilt_start < MIN_TILT) {
+    tilt_start = MIN_TILT;
+  }
+  if (tilt_end > MAX_TILT) {
+    tilt_end = MAX_TILT;
+  }
+  if (pan_start < MIN_PAN) {
+    pan_start = MIN_PAN;
+  }
+  if (pan_end > MAX_PAN) {
+    pan_end = MAX_PAN;
+  }
+
+  for (int tilt_pos = tilt_start; tilt_pos <= tilt_end; tilt_pos += tilt_increment) {
     tilt.write(tilt_pos);
-    while(continue_moving_pan) {
+    while (continue_moving_pan) {
       pan.write(pan_pos);
       double current_voltage = readSolarPanelVoltage();
 
       //print
       debugForMode2();
-      
+
       //identify is this is the max voltage
-      if(current_voltage > max_voltage) {
+      if (current_voltage > max_voltage) {
         maxVoltageMotorPos.panAngle = pan_pos;
         maxVoltageMotorPos.tiltAngle = tilt_pos;
         max_voltage = current_voltage;
       }
       if (moving_pan_left_to_right) {
-        pan_pos += 5;
-        if(pan_pos == MAX_PAN) {
+        pan_pos += pan_increment;
+        if (pan_pos >= pan_end) {
           continue_moving_pan = false;
         }
-      } else {
-        pan_pos -= 5;
-        if(pan_pos == MIN_PAN) {
+      } else { //once the pan reaches far right we will move from right to left to use less resources
+        pan_pos -= pan_increment;
+        if (pan_pos <= pan_start) {
           continue_moving_pan = false;
         }
       }
-      delay(500); // delay between next move and measure
+      delay(50); // delay between next move and measure
     }
     moving_pan_left_to_right = !moving_pan_left_to_right;
     continue_moving_pan = true;
