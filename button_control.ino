@@ -10,9 +10,6 @@ enum Mode {
 volatile Mode mode = sensorMode;
 volatile Mode previousMode = mode;
 
-// Battery
-byte battery[] = { B01110, B01010, B11011, B10001, B10001, B11111, B11111, B11111};
-
 // compass: left, up, down arrows
 byte compass[3][8] = {
   // left arrow
@@ -32,7 +29,6 @@ byte sensor[3][8] = {
 
 int sensorAddr[] = {0,1,2};
 int compassAddr[] = {3,4,5};
-int batteryAddr = 6;
 
 int sensorModeBtn = 2;
 int searchModeBtn = 3;
@@ -47,7 +43,6 @@ void setup() {
   for(int i=0;i<3;i++) {
      lcd.createChar(3+i, compass[i]);
   }
-  lcd.createChar(batteryAddr, battery);
   //----------------> configure buttons <--------------
   pinMode(sensorModeBtn, INPUT_PULLUP);
   pinMode(searchModeBtn, INPUT_PULLUP);
@@ -90,17 +85,12 @@ void displayMode() {
       }
       break;
     }
-    case spaceMappingMode : {
-      lcd.print ("space map ");
+    case searchMode : {
+      lcd.print ("search ");
       for(int i = 0; i < 3; i++) {
         lcd.write (byte(compassAddr[i]));  
       }
       break; 
-    }
-    case lowPowerMode : {
-      lcd.print ("low power ");
-      lcd.write (byte(batteryAddr));
-      break;
     }
   }
 }
