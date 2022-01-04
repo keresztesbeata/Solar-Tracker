@@ -4,12 +4,11 @@ LiquidCrystal lcd(8, 9, 4, 5, 6, 7);
 
 enum Mode {
   sensorMode,
-  spaceMappingMode,
-  lowPowerMode
+  searchMode
 };
 
-Mode mode = sensorMode;
-Mode previousMode = mode;
+volatile Mode mode = sensorMode;
+volatile Mode previousMode = mode;
 
 // Battery
 byte battery[] = { B01110, B01010, B11011, B10001, B10001, B11111, B11111, B11111};
@@ -35,7 +34,8 @@ int sensorAddr[] = {0,1,2};
 int compassAddr[] = {3,4,5};
 int batteryAddr = 6;
 
-int changeModeBtn = A0;
+int sensorModeBtn = 2;
+int searchModeBtn = 3;
 
 void setup() {
   //--------------> initialize LCD <-----------------
@@ -48,28 +48,30 @@ void setup() {
      lcd.createChar(3+i, compass[i]);
   }
   lcd.createChar(batteryAddr, battery);
+  //----------------> configure buttons <--------------
+  pinMode(sensorModeBtn, INPUT_PULLUP);
+  pinMode(searchModeBtn, INPUT_PULLUP);
+  //-----------> attach interrupts to buttons <----------
+  attachInterrupt(digitalPinToInterrupt(sensorModeBtn),onSwitchToSensorMode, RISING);
+  attachInterrupt(digitalPinToInterrupt(searchModeBtn),onSwitchToSearchMode, RISING);
 }
 
 void loop() {
-  onModeChange();
   displayMode();
 }
 
 /**
- * Callback function to handle the change of state of the attached pin, which will change the functioning mode of the solar tracker.
+ * Callback functions to change the functioning mode of the solar tracker when an interrupt is triggered.
  */
-void onModeChange() {
+ 
+void onSwitchToSensorMode() {
   previousMode = mode;
-  int input = analogRead (changeModeBtn);
-  if (input < 60) {
-    mode = sensorMode;
-  }
-  else if (input >= 400 && input < 600){
-    mode = spaceMappingMode;
-  }
-  else if (input >= 600 && input < 800){
-    mode = lowPowerMode;
-  }
+  mode = sensorMode;
+}
+
+void onSwitchToSearchMode() {
+  previousMode = mode;
+  mode = searchMode;
 }
 
 /**
