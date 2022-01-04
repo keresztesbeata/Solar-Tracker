@@ -9,6 +9,7 @@ enum Mode {
 };
 
 Mode mode = sensorMode;
+Mode previousMode = mode;
 
 // Battery
 byte battery[] = {
@@ -23,8 +24,19 @@ byte battery[] = {
 };
 
 // compass: left, up, down arrows
-byte up[] = {
- B00100,
+byte compass[3][8] = {
+  // left arrow
+  {B00000,
+  B00000,
+  B00000,
+  B00100,
+  B01100,
+  B11111,
+  B01100,
+  B00100
+  },
+  // up arrow
+ {B00100,
   B01110,
   B11111,
   B00100,
@@ -32,10 +44,9 @@ byte up[] = {
   B00100,
   B00100,
   B00000
-};
-
-byte right[] = {
-  B00000,
+  },
+  // right arrow 
+  {B00000,
   B00000,
   B00000,
   B00100,
@@ -43,56 +54,70 @@ byte right[] = {
   B11111,
   B00110,
   B00100
-};
-
-
-byte left[] = {
-  B00000,
-  B00000,
-  B00000,
-  B00100,
-  B01100,
-  B11111,
-  B01100,
-  B00100
+  }
 };
 
 //sensor
-byte sensor[] = {
+byte sensor[3][8] = {
+  {
   B00000,
-  B01110,
-  B10001,
+  B00000,
+  B00001,
+  B00010,
   B00100,
+  B00001,
+  B00010,
+  B00000
+  },{
+  B00000,
+  B10101,
+  B00000,
   B01010,
+  B10001,
   B00000,
   B00100,
   B01110
+  },{
+  B00000,
+  B00000,
+  B10000,
+  B01000,
+  B00100,
+  B10000,
+  B01000,
+  B00000
+  }
 };
 
-int batteryAddr = 0;
-int sensorAddr = 1;
-int upAddr = 2;
-int leftAddr = 3;
-int rightAddr = 4;
+int sensorAddr[] = {0,1,2};
+int compassAddr[] = {3,4,5};
+int batteryAddr = 6;
 
 int changeModeBtn = A0;
 
 void setup() {
+  //--------------> initialize LCD <-----------------
   lcd.begin(16, 2);
+  //-----------> create custom characters <----------
+  for(int i=0;i<3;i++) {
+      lcd.createChar(i, sensor[i]);
+  }
+  for(int i=0;i<3;i++) {
+     lcd.createChar(3+i, compass[i]);
+  }
   lcd.createChar(batteryAddr, battery);
-  lcd.createChar(sensorAddr, sensor);
-  lcd.createChar(upAddr, up);
-  lcd.createChar(leftAddr, left);
-  lcd.createChar(rightAddr, right);
 }
 
 void loop() {
-  changeMode();
-  display();
+  onModeChange();
+  displayMode();
 }
 
-void changeMode() {
-  Mode previousMode = mode;
+/**
+ * Callback function to handle the change of state of the attached pin, which will change the functioning mode of the solar tracker.
+ */
+void onModeChange() {
+  previousMode = mode;
   int input = analogRead (changeModeBtn);
   if (input < 60) {
     mode = sensorMode;
@@ -103,24 +128,29 @@ void changeMode() {
   else if (input >= 600 && input < 800){
     mode = lowPowerMode;
   }
+}
+
+/**
+ * Display the current mode on the LCD.
+ */
+void displayMode() {
   if(previousMode != mode) {
     lcd.clear();
   }
-}
-
-void display() {
   lcd.setCursor(0,1);
   switch(mode) {
     case sensorMode : {
       lcd.print ("sensors ");
-      lcd.write (byte(sensorAddr));
+      for(int i = 0; i < 3; i++) {
+        lcd.write (byte(sensorAddr[i]));  
+      }
       break;
     }
     case spaceMappingMode : {
       lcd.print ("space map ");
-      lcd.write (byte(leftAddr));
-      lcd.write (byte(upAddr));
-      lcd.write (byte(rightAddr));
+      for(int i = 0; i < 3; i++) {
+        lcd.write (byte(compassAddr[i]));  
+      }
       break; 
     }
     case lowPowerMode : {
@@ -129,4 +159,5 @@ void display() {
       break;
     }
   }
+  delay(100);
 }
