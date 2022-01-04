@@ -101,5 +101,4 @@ void displayMode() {
       break;
     }
   }
-  delay(100);
 }
