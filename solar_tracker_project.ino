@@ -29,13 +29,13 @@ int tiltPin = 4;
 
 // Motor constants
 #define MIN_TILT 5
-#define MAX_TILT 85
+#define MAX_TILT 75
 #define MIN_PAN 5
 #define MAX_PAN 175
 
 // increments for broad search
-#define TILT_INC_BROAD 5
-#define PAN_INC_BROAD 5
+#define TILT_INC_BROAD 10
+#define PAN_INC_BROAD 20
 // increments for restricted search
 #define TILT_INC_RESTR 10
 #define PAN_INC_RESTR 10
@@ -77,10 +77,10 @@ int loop_counter = 0;
 
 //used to perform searches at a specified interval
 unsigned long previousMillis = 0;
-const long interval = 30000; // 30 second interval bteween restricted searches
+const long interval = 20000; // 20 second interval bteween restricted searches
 
 //used to initalize the search mode with a broad search
-bool initialize_broad_search = false;
+bool initialize_broad_search = true;
 
 /*-------------------------------------------- Setup --------------------------------------------*/
 void setup() {
@@ -270,6 +270,9 @@ void updateMotorAngles() {
   if (motorPos.panAngle != prevMotorPos.panAngle) {
     pan.write(motorPos.panAngle);
   }
+
+  delay(100);
+  
   if (motorPos.tiltAngle != prevMotorPos.tiltAngle) {
     tilt.write(motorPos.tiltAngle);
   }
@@ -289,7 +292,7 @@ void DAQModeSetup() {
 void DAQSendDataOverSerial() {
   Serial.println( (String) "DATA,DATE,TIME,TIMER," + loop_counter + "," +
                   lightIntData.S + "," + lightIntData.N + "," + lightIntData.E+"," + lightIntData.W + "," +
-                  motorPos.panAngle + "," + motorPos.tiltAngle + "," + voltage + ",AUTOSCROLL_20");
+                  motorPos.panAngle + "," + motorPos.tiltAngle + "," + voltage);
 }
 
 /*-------------------------- Debug Mode (display data on Serial Monitor) ---------------------------*/
